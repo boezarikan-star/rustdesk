@@ -1,0 +1,31 @@
+name: Publish existing artifact
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Run ID to pull the built artifact from"
+        required: true
+      tag:
+        description: "Release tag"
+        required: true
+        default: "compendus-engine"
+permissions:
+  contents: write
+  actions: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download windows x86_64 artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh run download "${{ github.event.inputs.run_id }}" -R "${{ github.repository }}" -n rustdesk-unsigned-windows-x86_64 -D out
+          ls -la out
+          cd out && zip -r ../rustdesk-unsigned-windows-x86_64.zip . && cd ..
+          ls -la rustdesk-unsigned-windows-x86_64.zip
+      - name: Publish as release asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.event.inputs.tag }}" -R "${{ github.repository }}" -t "Compendus engine (${{ github.event.inputs.tag }})" -n "Branded engine artifact for embedding. Not a product release." rustdesk-unsigned-windows-x86_64.zip || gh release upload "${{ github.event.inputs.tag }}" -R "${{ github.repository }}" rustdesk-unsigned-windows-x86_64.zip --clobber
